@@ -1,5 +1,5 @@
 use std::{
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
 };
 
@@ -44,6 +44,32 @@ fn parse_req(raw: &str) -> Req {
     }
 }
 
+struct Res {
+    status_code: u16,
+    status_text: String,
+    headers: Vec<(String, String)>,
+    body: String,
+}
+
+impl Res {
+    fn to_string(&self) -> String {
+        let headers: String = self
+            .headers
+            .iter()
+            .map(|(k, v)| format!("{}: {}\r\n", k, v))
+            .collect();
+
+        format!(
+            "HTTP/1.1 {} {}\r\n{}Content-Length: {}\r\n\r\n{}",
+            self.status_code,
+            self.status_text,
+            headers,
+            self.body.len(),
+            self.body
+        )
+    }
+}
+
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878");
 
@@ -69,5 +95,16 @@ fn handle_connection(mut stream: TcpStream) {
         .collect::<Vec<_>>()
         .join("\n");
 
-    println!("{:?}", parse_req(&String::from(http_request)));
+    let req = parse_req(&String::from(http_request));
+
+    let res = Res {
+        status_code: 200,
+        status_text: "OK".to_string(),
+        headers: vec![("Content-Type".to_string(), "application/json".to_string())],
+        body: format!("{{\"name\": \"{}\"}}", req.path),
+    };
+
+    let response_str = res.to_string();
+
+    stream.write_all(response_str.as_bytes()).unwrap();
 }
