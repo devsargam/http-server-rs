@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::{BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
 };
@@ -9,7 +10,20 @@ struct Req {
     path: String,
     version: String,
     headers: Vec<(String, String)>,
+    query: HashMap<String, String>,
     body: Option<String>,
+}
+
+fn get_query_params(query: &str) -> HashMap<String, String> {
+    let mut params = HashMap::<String, String>::new();
+
+    query.split('&').for_each(|val| {
+        if let Some((k, v)) = val.split_once("=") {
+            params.insert(String::from(k), String::from(v));
+        }
+    });
+
+    params
 }
 
 fn parse_req(raw: &str) -> Req {
@@ -19,6 +33,13 @@ fn parse_req(raw: &str) -> Req {
     let mut parts = request_line.split_whitespace();
     let method = parts.next().unwrap().to_string();
     let path = parts.next().unwrap().to_string();
+    let query = if let Some((_, q)) = path.clone().split_once('?') {
+        get_query_params(q)
+    } else {
+        HashMap::new()
+    };
+    println!("{:?}", query);
+
     let version = parts.next().unwrap().to_string();
 
     let mut headers = Vec::new();
@@ -41,6 +62,7 @@ fn parse_req(raw: &str) -> Req {
         version,
         headers,
         body,
+        query,
     }
 }
 
@@ -95,7 +117,10 @@ fn handle_connection(mut stream: TcpStream) {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let req = parse_req(&String::from(http_request));
+    let binding = String::from(http_request);
+    let req = parse_req(&binding);
+
+    println!("{:?}", req);
 
     let res = Res {
         status_code: 200,
