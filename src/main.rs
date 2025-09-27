@@ -38,7 +38,11 @@ fn parse_req(raw: &str) -> Req {
     } else {
         HashMap::new()
     };
-    println!("{:?}", query);
+    let path = if let Some((q, _)) = path.clone().split_once('?') {
+        q.to_string()
+    } else {
+        path
+    };
 
     let version = parts.next().unwrap().to_string();
 
